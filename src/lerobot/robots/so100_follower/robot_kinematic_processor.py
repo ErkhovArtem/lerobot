@@ -608,3 +608,25 @@ class InverseKinematicsRLStep(ProcessorStep):
     def reset(self):
         """Resets the initial guess for the IK solver."""
         self.q_curr = None
+
+@ProcessorStepRegistry.register("rename_gripper_action")
+@dataclass
+class RenameGripperAction(RobotActionProcessorStep):
+    """
+    Renames gripper action from "ee.gripper_vel" to "ee.gripper_pos".
+    """
+
+    def action(self, action: RobotAction) -> RobotAction:
+        action["ee.gripper_pos"] = action.pop("ee.gripper_vel")
+        return action
+
+    def transform_features(
+        self, features: dict[PipelineFeatureType, dict[str, PolicyFeature]]
+    ) -> dict[PipelineFeatureType, dict[str, PolicyFeature]]:
+
+        features[PipelineFeatureType.ACTION].pop("ee.gripper_vel", None)
+
+        features[PipelineFeatureType.ACTION]["ee.gripper_pos"] = PolicyFeature(
+            type=FeatureType.ACTION, shape=(1,)
+        )
+        return features

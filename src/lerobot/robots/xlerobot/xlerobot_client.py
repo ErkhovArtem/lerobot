@@ -19,12 +19,28 @@ import json
 import logging
 from functools import cached_property
 from typing import Any, Dict, Optional, Tuple
+from collections import defaultdict
 
 import cv2
 import numpy as np
 import zmq
 
 from lerobot.utils.errors import DeviceAlreadyConnectedError, DeviceNotConnectedError
+from lerobot.model.kinematics import RobotKinematics
+from lerobot.processor import RobotAction, RobotObservation, RobotProcessorPipeline
+from lerobot.processor.converters import (
+    robot_action_observation_to_transition,
+    robot_action_to_transition,
+    transition_to_robot_action,
+)
+from lerobot.utils.rotation import Rotation
+from lerobot.robots.so100_follower.robot_kinematic_processor import (
+    EEBoundsAndSafety,
+    ForwardKinematicsJointsToEE,
+    InverseKinematicsEEToJoints,
+    EEReferenceAndDelta,
+    RenameGripperAction
+)
 
 from ..robot import Robot
 from .config_xlerobot import XLerobotConfig, XLerobotClientConfig
@@ -44,8 +60,6 @@ class XLerobotClient(Robot):
         self.port_zmq_cmd = config.port_zmq_cmd
         self.port_zmq_observations = config.port_zmq_observations
 
-        self.teleop_keys = config.teleop_keys
-
         self.polling_timeout_ms = config.polling_timeout_ms
         self.connect_timeout_s = config.connect_timeout_s
 
@@ -57,38 +71,55 @@ class XLerobotClient(Robot):
 
         self.last_remote_state = {}
 
-        # Define three speed levels and a current index
-        self.speed_levels = [
-            {"xy": 0.1, "theta": 30},  # slow
-            {"xy": 0.2, "theta": 60},  # medium
-            {"xy": 0.3, "theta": 90},  # fast
-        ]
-        self.speed_index = 0  # Start at slow
-
         self._is_connected = False
         self.logs = {}
+        so101_motor_names = ["shoulder_pan",
+                "shoulder_lift",
+                "elbow_flex",
+                "wrist_flex",
+                "wrist_roll",
+                "gripper",]
+
+        # NOTE: It is highly recommended to use the urdf in the SO-ARM100 repo: https://github.com/TheRobotStudio/SO-ARM100/blob/main/Simulation/SO101/so101_new_calib.urdf
+        follower_kinematics_solver = RobotKinematics(
+            urdf_path="./SO101/so101_new_calib.urdf",
+            target_frame_name="gripper_frame_link",
+            joint_names=so101_motor_names,
+        )
+
+        self.teleop_to_robot_pipeline = RobotProcessorPipeline[tuple[RobotAction, RobotObservation], RobotAction](
+            [
+                EEReferenceAndDelta(
+                    kinematics=follower_kinematics_solver,
+                    end_effector_step_sizes = defaultdict(lambda: 1),
+                    motor_names = so101_motor_names,
+                    use_latched_reference=False
+                ),
+                RenameGripperAction(),
+                EEBoundsAndSafety(
+                    end_effector_bounds={"min": [-1.0, -1.0, -1.0], "max": [1.0, 1.0, 1.0]},
+                    max_ee_step_m=0.10,
+                ),
+                InverseKinematicsEEToJoints(
+                    kinematics=follower_kinematics_solver,
+                    motor_names=so101_motor_names,
+                    initial_guess_current_joints=True,
+                ),
+            ],
+            to_transition=robot_action_observation_to_transition,
+            to_output=transition_to_robot_action,
+        )
 
     @cached_property
     def _state_ft(self) -> dict[str, type]:
         return dict.fromkeys(
             (
-                "left_arm_shoulder_pan.pos",
-                "left_arm_shoulder_lift.pos",
-                "left_arm_elbow_flex.pos",
-                "left_arm_wrist_flex.pos",
-                "left_arm_wrist_roll.pos",
-                "left_arm_gripper.pos",
-                "right_arm_shoulder_pan.pos",
-                "right_arm_shoulder_lift.pos",
-                "right_arm_elbow_flex.pos",
-                "right_arm_wrist_flex.pos",
-                "right_arm_wrist_roll.pos",
-                "right_arm_gripper.pos",
-                "head_motor_1.pos",
-                "head_motor_2.pos",
-                "x.vel",
-                "y.vel",
-                "theta.vel",
+                "shoulder_pan.pos",
+                "shoulder_lift.pos",
+                "elbow_flex.pos",
+                "wrist_flex.pos",
+                "wrist_roll.pos",
+                "gripper.pos",
             ),
             float,
         )
@@ -275,43 +306,21 @@ class XLerobotClient(Robot):
 
         return obs_dict
 
-    def _from_keyboard_to_base_action(self, pressed_keys: np.ndarray):
-        # Speed control
-        if self.teleop_keys["speed_up"] in pressed_keys:
-            self.speed_index = min(self.speed_index + 1, 2)
-        if self.teleop_keys["speed_down"] in pressed_keys:
-            self.speed_index = max(self.speed_index - 1, 0)
-        speed_setting = self.speed_levels[self.speed_index]
-        xy_speed = speed_setting["xy"]  # e.g. 0.1, 0.25, or 0.4
-        theta_speed = speed_setting["theta"]  # e.g. 30, 60, or 90
-
-        x_cmd = 0.0  # m/s forward/backward
-        y_cmd = 0.0  # m/s lateral
-        theta_cmd = 0.0  # deg/s rotation
-
-        if self.teleop_keys["forward"] in pressed_keys:
-            x_cmd += xy_speed
-        if self.teleop_keys["backward"] in pressed_keys:
-            x_cmd -= xy_speed
-        if self.teleop_keys["left"] in pressed_keys:
-            y_cmd += xy_speed
-        if self.teleop_keys["right"] in pressed_keys:
-            y_cmd -= xy_speed
-        if self.teleop_keys["rotate_left"] in pressed_keys:
-            theta_cmd += theta_speed
-        if self.teleop_keys["rotate_right"] in pressed_keys:
-            theta_cmd -= theta_speed
-            
-        return {
-            # "head_motor_1.pos": 0.0,  # Head motors are not controlled by keyboard
-            # "head_motor_2.pos": 0.0,  # TODO: implement head control
-            "x.vel": x_cmd, 
-            "y.vel": y_cmd,
-            "theta.vel": theta_cmd,
-        }
-
     def configure(self):
         pass
+
+    def calculate_action(self, delta_eef):
+        """
+        Calculates target joint angles based on the current angles and delta EEF pose from teleoperation device.
+        """
+        if not self._is_connected:
+            raise DeviceNotConnectedError(
+                "ManipulatorRobot is not connected. You need to run `robot.connect()`."
+            )
+        current_joints = self.get_observation()
+        target_joints = self.teleop_to_robot_pipeline((delta_eef, current_joints))
+
+        return target_joints
 
     def send_action(self, action: dict[str, Any]) -> dict[str, Any]:
         """Command lekiwi to move to a target joint configuration. Translates to motor space + sends over ZMQ

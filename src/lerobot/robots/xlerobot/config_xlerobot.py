@@ -23,7 +23,7 @@ from ..config import RobotConfig
 
 def xlerobot_cameras_config() -> dict[str, CameraConfig]:
     return {
-        # "left_wrist": OpenCVCameraConfig(
+        # "wrist": OpenCVCameraConfig(
         #     index_or_path="/dev/video0", fps=30, width=640, height=480, rotation=Cv2Rotation.NO_ROTATION
         # ),
 
@@ -65,23 +65,6 @@ class XLerobotConfig(RobotConfig):
     # Set to `True` for backward compatibility with previous policies/dataset
     use_degrees: bool = False
 
-    teleop_keys: dict[str, str] = field(
-        default_factory=lambda: {
-            # Movement
-            "forward": "i",
-            "backward": "k",
-            "left": "j",
-            "right": "l",
-            "rotate_left": "u",
-            "rotate_right": "o",
-            # Speed control
-            "speed_up": "n",
-            "speed_down": "m",
-            # quit teleop
-            "quit": "b",
-        }
-    )
-
 
 
 @dataclass
@@ -106,23 +89,6 @@ class XLerobotClientConfig(RobotConfig):
     remote_ip: str
     port_zmq_cmd: int = 5555
     port_zmq_observations: int = 5556
-
-    teleop_keys: dict[str, str] = field(
-        default_factory=lambda: {
-            # Movement
-            "forward": "i",
-            "backward": "k",
-            "left": "j",
-            "right": "l",
-            "rotate_left": "u",
-            "rotate_right": "o",
-            # Speed control
-            "speed_up": "n",
-            "speed_down": "m",
-            # quit teleop
-            "quit": "b",
-        }
-    )
 
     cameras: dict[str, CameraConfig] = field(default_factory=xlerobot_cameras_config)
 

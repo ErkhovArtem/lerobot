@@ -22,8 +22,17 @@ import time
 import cv2
 import zmq
 
-from .xlerobot import XLerobot
-from .config_xlerobot import XLerobotConfig, XLerobotHostConfig
+from lerobot.robots.xlerobot import XLerobot, XLerobotConfig, XLerobotHostConfig
+# from .config_xlerobot import XLerobotHostConfig
+from lerobot.robots.so101_follower import SO101Follower, SO101FollowerConfig
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),  # вывод в консоль
+    ]
+)
 
 
 class XLerobotHost:
@@ -49,8 +58,10 @@ class XLerobotHost:
 
 def main():
     logging.info("Configuring Xlerobot")
-    robot_config = XLerobotConfig(id="my_xlerobot_pc")
-    robot = XLerobot(robot_config)
+    # robot_config = XLerobotConfig(id="my_xlerobot_pc")
+    robot_config = SO101FollowerConfig(id="follower_arm", port="/dev/ttyACM0")
+    # robot = XLerobot(robot_config)
+    robot = SO101Follower(robot_config)
 
     logging.info("Connecting Xlerobot")
     robot.connect()
@@ -86,7 +97,7 @@ def main():
                     f"Command not received for more than {host.watchdog_timeout_ms} milliseconds. Stopping the base."
                 )
                 watchdog_active = True
-                robot.stop_base()
+                # robot.stop_base()
 
             last_observation = robot.get_observation()
 
