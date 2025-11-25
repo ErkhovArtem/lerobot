@@ -26,21 +26,6 @@ import numpy as np
 import zmq
 
 from lerobot.utils.errors import DeviceAlreadyConnectedError, DeviceNotConnectedError
-from lerobot.model.kinematics import RobotKinematics
-from lerobot.processor import RobotAction, RobotObservation, RobotProcessorPipeline
-from lerobot.processor.converters import (
-    robot_action_observation_to_transition,
-    robot_action_to_transition,
-    transition_to_robot_action,
-)
-from lerobot.utils.rotation import Rotation
-from lerobot.robots.so100_follower.robot_kinematic_processor import (
-    EEBoundsAndSafety,
-    ForwardKinematicsJointsToEE,
-    InverseKinematicsEEToJoints,
-    EEReferenceAndDelta,
-    RenameGripperAction
-)
 
 from ..robot import Robot
 from .config_xlerobot import XLerobotConfig, XLerobotClientConfig
@@ -73,53 +58,19 @@ class XLerobotClient(Robot):
 
         self._is_connected = False
         self.logs = {}
-        so101_motor_names = ["shoulder_pan",
-                "shoulder_lift",
-                "elbow_flex",
-                "wrist_flex",
-                "wrist_roll",
-                "gripper",]
-
-        # NOTE: It is highly recommended to use the urdf in the SO-ARM100 repo: https://github.com/TheRobotStudio/SO-ARM100/blob/main/Simulation/SO101/so101_new_calib.urdf
-        follower_kinematics_solver = RobotKinematics(
-            urdf_path="./SO101/so101_new_calib.urdf",
-            target_frame_name="gripper_frame_link",
-            joint_names=so101_motor_names,
-        )
-
-        self.teleop_to_robot_pipeline = RobotProcessorPipeline[tuple[RobotAction, RobotObservation], RobotAction](
-            [
-                EEReferenceAndDelta(
-                    kinematics=follower_kinematics_solver,
-                    end_effector_step_sizes = defaultdict(lambda: 1),
-                    motor_names = so101_motor_names,
-                    use_latched_reference=False
-                ),
-                RenameGripperAction(),
-                EEBoundsAndSafety(
-                    end_effector_bounds={"min": [-1.0, -1.0, -1.0], "max": [1.0, 1.0, 1.0]},
-                    max_ee_step_m=0.10,
-                ),
-                InverseKinematicsEEToJoints(
-                    kinematics=follower_kinematics_solver,
-                    motor_names=so101_motor_names,
-                    initial_guess_current_joints=True,
-                ),
-            ],
-            to_transition=robot_action_observation_to_transition,
-            to_output=transition_to_robot_action,
-        )
 
     @cached_property
     def _state_ft(self) -> dict[str, type]:
         return dict.fromkeys(
             (
-                "shoulder_pan.pos",
-                "shoulder_lift.pos",
-                "elbow_flex.pos",
-                "wrist_flex.pos",
-                "wrist_roll.pos",
-                "gripper.pos",
+                "left_arm_shoulder_pan.pos",
+                "left_arm_shoulder_lift.pos",
+                "left_arm_elbow_flex.pos",
+                "left_arm_wrist_flex.pos",
+                "left_arm_wrist_roll.pos",
+                "left_arm_gripper.pos",
+                "head_motor_1.pos",
+                "head_motor_2.pos"
             ),
             float,
         )
@@ -308,19 +259,6 @@ class XLerobotClient(Robot):
 
     def configure(self):
         pass
-
-    def calculate_action(self, delta_eef):
-        """
-        Calculates target joint angles based on the current angles and delta EEF pose from teleoperation device.
-        """
-        if not self._is_connected:
-            raise DeviceNotConnectedError(
-                "ManipulatorRobot is not connected. You need to run `robot.connect()`."
-            )
-        current_joints = self.get_observation()
-        target_joints = self.teleop_to_robot_pipeline((delta_eef, current_joints))
-
-        return target_joints
 
     def send_action(self, action: dict[str, Any]) -> dict[str, Any]:
         """Command lekiwi to move to a target joint configuration. Translates to motor space + sends over ZMQ
