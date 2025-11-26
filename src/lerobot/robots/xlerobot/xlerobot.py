@@ -636,6 +636,7 @@ class XLerobot(Robot):
 
         logger.info(f"{self} disconnected.")
 
+########################################################################################################################################################
 
 from ..robot import Robot
 from ..utils import ensure_safe_goal_position

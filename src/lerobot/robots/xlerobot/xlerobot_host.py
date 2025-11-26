@@ -22,8 +22,7 @@ import time
 import cv2
 import zmq
 
-from lerobot.robots.xlerobot import XLerobot, XLerobotConfig, XLerobotHostConfig, XLerobotLeftArm, XLerobotLeftArmConfig
-from lerobot.robots.so101_follower import SO101Follower, SO101FollowerConfig
+from lerobot.robots.xlerobot import XLerobot, XLerobotConfig, XLerobotHostConfig
 
 logging.basicConfig(
     level=logging.INFO,
@@ -57,12 +56,8 @@ class XLerobotHost:
 
 def main():
     logging.info("Configuring Xlerobot")
-    # robot_config = XLerobotConfig(id="my_xlerobot_pc")
-    # robot_config = SO101FollowerConfig(id="follower_arm", port="/dev/ttyACM0")
-    robot_config = XLerobotLeftArmConfig(id="xlerobot_left_arm", port="/dev/ttyACM1", head_base_pose = {"head_motor_1": 0.0, "head_motor_2": -23.5})
-    # robot = XLerobot(robot_config)
-    # robot = SO101Follower(robot_config)
-    robot = XLerobotLeftArm(robot_config)
+    robot_config = XLerobotConfig(id="my_xlerobot_pc")
+    robot = XLerobot(robot_config)
 
     logging.info("Connecting Xlerobot")
     robot.connect()

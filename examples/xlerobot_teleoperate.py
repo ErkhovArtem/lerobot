@@ -15,14 +15,13 @@
 # limitations under the License.
 
 import time
+import numpy as np
 
 from lerobot.processor import make_default_processors
 
-from lerobot.robots.so101_follower.config_so101_follower import SO101FollowerConfig
-
-from lerobot.robots.so101_follower.so101_follower import SO101Follower
-from lerobot.teleoperators.so101_leader.config_so101_leader import SO101LeaderConfig
-from lerobot.teleoperators.so101_leader.so101_leader import SO101Leader
+from lerobot.teleoperators.bi_so100_leader.config_bi_so100_leader import BiSO100LeaderConfig
+from lerobot.teleoperators.bi_so100_leader.bi_so100_leader import BiSO100Leader
+from lerobot.teleoperators.keyboard.teleop_keyboard import KeyboardTeleop, KeyboardTeleopConfig
 from lerobot.robots.xlerobot import XLerobotClientConfig, XLerobotClient
 from lerobot.utils.robot_utils import busy_wait
 from lerobot.utils.visualization_utils import init_rerun, log_rerun_data
@@ -30,18 +29,19 @@ from lerobot.utils.visualization_utils import init_rerun, log_rerun_data
 FPS = 30
 
 # Initialize the robot and teleoperator config
-# follower_config = SO101FollowerConfig(
-#     port="/dev/ttyACM0", id="follower_arm")
+
 follower_config = XLerobotClientConfig(remote_ip = '10.16.116.33')
 
-leader_config = SO101LeaderConfig(port="/dev/ttyACM1", id="leader_arm")
-
+leader_config = BiSO100LeaderConfig(left_arm_port="/dev/ttyACM1", right_arm_port="/dev/ttyACM0", id="xlerobot_leader")
 
 # Initialize the robot and teleoperator
-# follower = SO101Follower(follower_config)
-leader = SO101Leader(leader_config)
+leader = BiSO100Leader(leader_config)
 follower = XLerobotClient(follower_config)
-teleop_action_processor, robot_action_processor, robot_observation_processor = make_default_processors()
+
+#Init the keyboard instance
+keyboard_config = KeyboardTeleopConfig()
+keyboard = KeyboardTeleop(keyboard_config)
+keyboard.connect()
 
 # Connect to the robot and teleoperator
 follower.connect()
@@ -58,9 +58,13 @@ while True:
 
     # Get teleop action
     action = leader.get_action()
-    action = {f"left_arm_{k}": v for k, v in action.items()}
     action["head_motor_1.pos"] = 0.
     action["head_motor_2.pos"] = 0.
+
+    pressed_keys = set(keyboard.get_action().keys())
+    keyboard_keys = np.array(list(pressed_keys))
+    base_action = follower._from_keyboard_to_base_action(keyboard_keys) or {}
+    action = {**action, **base_action}
 
     # Send processed action to robot (robot_action_processor.to_output should return dict[str, Any])
     _ = follower.send_action(action)

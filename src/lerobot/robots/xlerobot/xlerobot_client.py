@@ -19,7 +19,6 @@ import json
 import logging
 from functools import cached_property
 from typing import Any, Dict, Optional, Tuple
-from collections import defaultdict
 
 import cv2
 import numpy as np
@@ -69,8 +68,17 @@ class XLerobotClient(Robot):
                 "left_arm_wrist_flex.pos",
                 "left_arm_wrist_roll.pos",
                 "left_arm_gripper.pos",
+                "right_arm_shoulder_pan.pos",
+                "right_arm_shoulder_lift.pos",
+                "right_arm_elbow_flex.pos",
+                "right_arm_wrist_flex.pos",
+                "right_arm_wrist_roll.pos",
+                "right_arm_gripper.pos",
                 "head_motor_1.pos",
-                "head_motor_2.pos"
+                "head_motor_2.pos",
+                "x.vel",
+                "y.vel",
+                "theta.vel",
             ),
             float,
         )
@@ -236,6 +244,41 @@ class XLerobotClient(Robot):
         self.last_remote_state = new_state
 
         return new_frames, new_state
+    
+    def _from_keyboard_to_base_action(self, pressed_keys: np.ndarray):
+        # Speed control
+        if self.teleop_keys["speed_up"] in pressed_keys:
+            self.speed_index = min(self.speed_index + 1, 2)
+        if self.teleop_keys["speed_down"] in pressed_keys:
+            self.speed_index = max(self.speed_index - 1, 0)
+        speed_setting = self.speed_levels[self.speed_index]
+        xy_speed = speed_setting["xy"]  # e.g. 0.1, 0.25, or 0.4
+        theta_speed = speed_setting["theta"]  # e.g. 30, 60, or 90
+
+        x_cmd = 0.0  # m/s forward/backward
+        y_cmd = 0.0  # m/s lateral
+        theta_cmd = 0.0  # deg/s rotation
+
+        if self.teleop_keys["forward"] in pressed_keys:
+            x_cmd += xy_speed
+        if self.teleop_keys["backward"] in pressed_keys:
+            x_cmd -= xy_speed
+        if self.teleop_keys["left"] in pressed_keys:
+            y_cmd += xy_speed
+        if self.teleop_keys["right"] in pressed_keys:
+            y_cmd -= xy_speed
+        if self.teleop_keys["rotate_left"] in pressed_keys:
+            theta_cmd += theta_speed
+        if self.teleop_keys["rotate_right"] in pressed_keys:
+            theta_cmd -= theta_speed
+            
+        return {
+            # "head_motor_1.pos": 0.0,  # Head motors are not controlled by keyboard
+            # "head_motor_2.pos": 0.0,  # TODO: implement head control
+            "x.vel": x_cmd, 
+            "y.vel": y_cmd,
+            "theta.vel": theta_cmd,
+        }
 
     def get_observation(self) -> dict[str, Any]:
         """
