@@ -65,6 +65,23 @@ class XLerobotConfig(RobotConfig):
     # Set to `True` for backward compatibility with previous policies/dataset
     use_degrees: bool = False
 
+    teleop_keys: dict[str, str] = field(
+        default_factory=lambda: {
+            # Movement
+            "forward": "i",
+            "backward": "k",
+            "left": "j",
+            "right": "l",
+            "rotate_left": "u",
+            "rotate_right": "o",
+            # Speed control
+            "speed_up": "n",
+            "speed_down": "m",
+            # quit teleop
+            "quit": "b",
+        }
+    )
+
 
 
 @dataclass

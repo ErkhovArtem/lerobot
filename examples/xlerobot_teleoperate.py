@@ -32,7 +32,7 @@ FPS = 30
 
 follower_config = XLerobotClientConfig(remote_ip = '10.16.116.33')
 
-leader_config = BiSO100LeaderConfig(left_arm_port="/dev/ttyACM1", right_arm_port="/dev/ttyACM0", id="xlerobot_leader")
+leader_config = BiSO100LeaderConfig(left_arm_port="/dev/ttyACM1", right_arm_port="/dev/ttyACM0", id="leader_arm")
 
 # Initialize the robot and teleoperator
 leader = BiSO100Leader(leader_config)
