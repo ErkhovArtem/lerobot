@@ -39,6 +39,14 @@ class XLerobotClient(Robot):
         self.config = config
         self.id = config.id
         self.robot_type = config.type
+        self.teleop_keys = config.teleop_keys
+        self.speed_levels = [
+            {"xy": 0.1, "theta": 30},  # slow
+            {"xy": 0.2, "theta": 60},  # medium
+            {"xy": 0.3, "theta": 90},  # fast
+        ]
+        self.speed_index = 0  # Start at slow
+        self.head_base_pose = config.head_base_pose
 
         self.remote_ip = config.remote_ip
         self.port_zmq_cmd = config.port_zmq_cmd

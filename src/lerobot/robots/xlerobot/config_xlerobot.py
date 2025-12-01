@@ -36,13 +36,13 @@ def xlerobot_cameras_config() -> dict[str, CameraConfig]:
         # ),                     
         
         # "head": RealSenseCameraConfig(
-        #     serial_number_or_name="125322060037",  # Replace with camera SN
+        #     serial_number_or_name="141722076677",  # Replace with camera SN
         #     fps=30,
         #     width=1280,
         #     height=720,
         #     color_mode=ColorMode.BGR, # Request BGR output
         #     rotation=Cv2Rotation.NO_ROTATION,
-        #     use_depth=True
+        #     use_depth=False
         # ),
     }
 
@@ -111,3 +111,27 @@ class XLerobotClientConfig(RobotConfig):
 
     polling_timeout_ms: int = 15
     connect_timeout_s: int = 5
+
+    teleop_keys: dict[str, str] = field(
+        default_factory=lambda: {
+            # Movement
+            "forward": "i",
+            "backward": "k",
+            "left": "j",
+            "right": "l",
+            "rotate_left": "u",
+            "rotate_right": "o",
+            # Speed control
+            "speed_up": "n",
+            "speed_down": "m",
+            # quit teleop
+            "quit": "b",
+        }
+    )
+
+    head_base_pose: dict[str, float] = field(
+        default_factory=lambda: {
+            "head_motor_1.pos": 0,
+            "head_motor_2.pos": 0,
+        }
+    )
