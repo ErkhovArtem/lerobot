@@ -16,190 +16,207 @@ class PhoneServer:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>XLeRobotHead - IMU & RealSense</title>
+    <meta name="screen-orientation" content="landscape">
+    <title>XLeRobotHead - VR Mode</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+        }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            margin: 0;
-            padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
             display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+            flex-direction: row;
+            align-items: stretch;
         }
-        .container {
-            background: white;
-            border-radius: 20px;
-            padding: 30px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-            max-width: 400px;
+        /* VR Display Container */
+        .vr-container {
+            display: flex;
             width: 100%;
+            height: 100vh;
+            position: relative;
         }
-        h1 {
-            text-align: center;
-            color: #333;
-            margin-bottom: 20px;
-            font-size: 24px;
+        .eye-container {
+            width: 50%;
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+            position: relative;
         }
-        .status {
-            text-align: center;
+        .eye-container.left {
+            border-right: 1px solid #333;
+        }
+        .eye-container.right {
+            border-left: 1px solid #333;
+        }
+        .eye-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        /* Control Panel (hidden by default, can be toggled) */
+        .control-panel {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
             padding: 15px;
             border-radius: 10px;
-            margin-bottom: 20px;
-            font-weight: bold;
-            font-size: 16px;
+            z-index: 1000;
+            font-size: 12px;
+            max-width: 200px;
+            display: none;
         }
-        .status.disconnected {
-            background: #fee;
-            color: #c33;
+        .control-panel.visible {
+            display: block;
         }
-        .status.connected {
-            background: #efe;
-            color: #3c3;
-        }
-        .data-section {
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 15px;
-            margin-bottom: 15px;
-        }
-        .section-title {
-            font-weight: bold;
-            color: #667eea;
+        .control-panel h3 {
             margin-bottom: 10px;
             font-size: 14px;
         }
-        .data-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid #e0e0e0;
-            font-size: 14px;
+        .control-panel .status {
+            padding: 5px;
+            margin: 5px 0;
+            border-radius: 5px;
+            font-size: 11px;
         }
-        .data-row:last-child {
-            border-bottom: none;
+        .status.disconnected {
+            background: rgba(204, 51, 51, 0.5);
         }
-        .label {
-            font-weight: bold;
-            color: #666;
+        .status.connected {
+            background: rgba(51, 204, 51, 0.5);
         }
-        .value {
-            font-family: 'Courier New', monospace;
-            color: #333;
-        }
-        button {
+        .control-panel button {
             width: 100%;
-            padding: 15px;
-            font-size: 18px;
+            padding: 10px;
+            margin: 5px 0;
             border: none;
-            border-radius: 10px;
+            border-radius: 5px;
             font-weight: bold;
             cursor: pointer;
-            transition: all 0.3s;
+            font-size: 12px;
         }
         .btn-start {
             background: #667eea;
             color: white;
         }
-        .btn-start:active {
-            background: #5568d3;
-        }
         .btn-stop {
             background: #f56565;
             color: white;
         }
-        .btn-stop:active {
-            background: #e05555;
-        }
-        .info {
-            text-align: center;
-            color: #666;
-            font-size: 12px;
-            margin-top: 15px;
-        }
-        .rate {
-            text-align: center;
-            color: #999;
-            font-size: 11px;
-            margin-top: 5px;
-        }
-        .video-container {
-            width: 100%;
-            margin-bottom: 15px;
-            border-radius: 10px;
-            overflow: hidden;
-            background: #000;
-        }
-        .video-container img {
-            width: 100%;
-            display: block;
-        }
-        .video-label {
-            background: #667eea;
+        .toggle-panel {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
             color: white;
-            padding: 8px;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 1001;
             font-size: 12px;
-            font-weight: bold;
+        }
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 18px;
             text-align: center;
+        }
+        /* Force landscape orientation */
+        @media screen and (orientation: portrait) {
+            body::before {
+                content: "Пожалуйста, поверните устройство горизонтально";
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(0, 0, 0, 0.9);
+                color: white;
+                padding: 30px;
+                border-radius: 10px;
+                z-index: 10000;
+                font-size: 18px;
+                text-align: center;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🤖 XLeRobotHead</h1>
-        
-            <div class="video-container">
-            <div class="video-label">📹 Video Stream</div>
-            <img id="realsenseStream" src="/realsense_stream" alt="Video Stream" style="width: 100%; display: none;">
+    <!-- VR Display -->
+    <div class="vr-container">
+        <div class="eye-container left">
+            <div class="loading" id="loadingLeft">Загрузка...</div>
+            <img id="leftEye" src="/realsense_stream" alt="Left Eye" style="display: none;">
         </div>
-        
-        <h2>📱 Phone IMU Sender</h2>
-        
-        <div id="imuStatus" class="status disconnected">
-            Disconnected
+        <div class="eye-container right">
+            <div class="loading" id="loadingRight">Загрузка...</div>
+            <img id="rightEye" src="/realsense_stream" alt="Right Eye" style="display: none;">
         </div>
-        
-        <div class="data-section">
-            <div class="section-title">Orientation</div>
-            <div class="data-row">
-                <span class="label">Roll:</span>
-                <span class="value" id="roll">0.00°</span>
-            </div>
-            <div class="data-row">
-                <span class="label">Pitch:</span>
-                <span class="value" id="pitch">0.00°</span>
-            </div>
-            <div class="data-row">
-                <span class="label">Yaw:</span>
-                <span class="value" id="yaw">0.00°</span>
-            </div>
+    </div>
+    
+    <!-- Control Panel Toggle -->
+    <button class="toggle-panel" onclick="toggleControlPanel()">⚙️</button>
+    
+    <!-- Control Panel -->
+    <div class="control-panel" id="controlPanel">
+        <h3>🤖 XLeRobotHead</h3>
+        <div id="imuStatus" class="status disconnected">Disconnected</div>
+        <div style="margin: 10px 0; font-size: 11px;">
+            <div>Roll: <span id="roll">0.00°</span></div>
+            <div>Pitch: <span id="pitch">0.00°</span></div>
+            <div>Yaw: <span id="yaw">0.00°</span></div>
         </div>
-        
-        <button id="toggleBtn" class="btn-start" onclick="toggleStreaming()">
-            Start Streaming
-        </button>
-        
-        <div class="info">
-            <span id="platformInfo">Device sensor fusion</span>
+        <button id="toggleBtn" class="btn-start" onclick="toggleStreaming()">Start Streaming</button>
+        <div style="margin-top: 10px; font-size: 10px; color: #999;">
+            <div id="platformInfo">Device sensor fusion</div>
+            <div id="updateRate"></div>
         </div>
-        <div class="rate" id="updateRate"></div>
     </div>
 
     <script>
+        // Toggle control panel visibility
+        function toggleControlPanel() {
+            const panel = document.getElementById('controlPanel');
+            if (panel) {
+                panel.classList.toggle('visible');
+            }
+        }
+        
+        // Lock screen orientation to landscape
+        if (screen.orientation && screen.orientation.lock) {
+            screen.orientation.lock('landscape').catch(() => {
+                console.log('Could not lock orientation');
+            });
+        }
+        
         // Detect platform
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
                      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         const isAndroid = /Android/.test(navigator.userAgent);
         
         // Update platform info
-        if (isIOS) {
-            document.getElementById('platformInfo').textContent = 'iOS sensor fusion';
-        } else if (isAndroid) {
-            document.getElementById('platformInfo').textContent = 'Android sensor fusion';
-        } else {
-            document.getElementById('platformInfo').textContent = 'Device sensor fusion';
+        const platformInfo = document.getElementById('platformInfo');
+        if (platformInfo) {
+            if (isIOS) {
+                platformInfo.textContent = 'iOS sensor fusion';
+            } else if (isAndroid) {
+                platformInfo.textContent = 'Android sensor fusion';
+            } else {
+                platformInfo.textContent = 'Device sensor fusion';
+            }
         }
         
         // IMU WebSocket
@@ -318,11 +335,27 @@ class PhoneServer:
                 connectWebSocket();
                 window.addEventListener('deviceorientation', handleOrientation);
                 
-                // Start video stream
-                const realsenseStream = document.getElementById('realsenseStream');
-                if (realsenseStream) {
-                    realsenseStream.src = '/realsense_stream?' + new Date().getTime();
-                    realsenseStream.style.display = 'block';
+                // Start video stream for both eyes
+                const leftEye = document.getElementById('leftEye');
+                const rightEye = document.getElementById('rightEye');
+                const loadingLeft = document.getElementById('loadingLeft');
+                const loadingRight = document.getElementById('loadingRight');
+                const timestamp = new Date().getTime();
+                
+                if (leftEye && rightEye) {
+                    // Use same stream for both eyes (monoscopic VR)
+                    // For stereoscopic VR, you could use different endpoints
+                    leftEye.src = '/realsense_stream?' + timestamp;
+                    rightEye.src = '/realsense_stream?' + timestamp;
+                    
+                    leftEye.onload = () => {
+                        leftEye.style.display = 'block';
+                        if (loadingLeft) loadingLeft.style.display = 'none';
+                    };
+                    rightEye.onload = () => {
+                        rightEye.style.display = 'block';
+                        if (loadingRight) loadingRight.style.display = 'none';
+                    };
                 }
                 
                 isStreaming = true;
@@ -337,10 +370,20 @@ class PhoneServer:
                 }
                 
                 // Stop video stream
-                const realsenseStream = document.getElementById('realsenseStream');
-                if (realsenseStream) {
-                    realsenseStream.src = '';
-                    realsenseStream.style.display = 'none';
+                const leftEye = document.getElementById('leftEye');
+                const rightEye = document.getElementById('rightEye');
+                const loadingLeft = document.getElementById('loadingLeft');
+                const loadingRight = document.getElementById('loadingRight');
+                
+                if (leftEye) {
+                    leftEye.src = '';
+                    leftEye.style.display = 'none';
+                    if (loadingLeft) loadingLeft.style.display = 'block';
+                }
+                if (rightEye) {
+                    rightEye.src = '';
+                    rightEye.style.display = 'none';
+                    if (loadingRight) loadingRight.style.display = 'block';
                 }
                 
                 isStreaming = false;
@@ -354,8 +397,14 @@ class PhoneServer:
 </body>
 </html>"""
     
-    def __init__(self):
-        """Initialize the server"""
+    def __init__(self, camera_id=0, enable_camera=True):
+        """
+        Initialize the server
+        
+        Args:
+            camera_id: Camera device ID (default: 0)
+            enable_camera: If True, automatically start camera capture (default: True)
+        """
         self.roll = 0.0
         self.pitch = 0.0
         self.yaw = 0.0
@@ -381,6 +430,13 @@ class PhoneServer:
         
         # Frame storage for external frames
         self.current_frame = None
+        
+        # Camera state
+        self.camera_id = camera_id
+        self.camera = None
+        self.camera_thread = None
+        self.camera_running = False
+        self.enable_camera = enable_camera
         
         # Server state
         self.server_thread = None
@@ -441,17 +497,91 @@ class PhoneServer:
     def update_frame(self, frame: np.ndarray):
         """
         Update the current frame from external source.
+        Note: This will be overridden by camera frames if camera is enabled.
         
         Args:
             frame: numpy array of uint8, shape (H, W, 3) in BGR format
         """
         if frame is not None and isinstance(frame, np.ndarray):
-            # Make a copy to avoid issues with external modifications
-            self.current_frame = frame.copy()
+            # Only update if camera is not running (to avoid conflicts)
+            if not self.camera_running:
+                # Make a copy to avoid issues with external modifications
+                self.current_frame = frame.copy()
     
     def get_current_frame(self):
         """Get the latest frame"""
         return self.current_frame.copy() if self.current_frame is not None else None
+    
+    def _camera_capture_loop(self):
+        """Internal method to capture frames from camera in a separate thread"""
+        print(f"Starting camera capture from device {self.camera_id}...")
+        
+        try:
+            self.camera = cv2.VideoCapture(self.camera_id)
+            if not self.camera.isOpened():
+                print(f"⚠ Warning: Could not open camera {self.camera_id}")
+                self.camera_running = False
+                return
+            
+            # Set camera properties for better performance
+            self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+            self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+            self.camera.set(cv2.CAP_PROP_FPS, 30)
+            
+            print(f"✓ Camera {self.camera_id} opened successfully")
+            
+            while self.camera_running:
+                ret, frame = self.camera.read()
+                if ret:
+                    # Frame is in BGR format from cv2
+                    self.current_frame = frame
+                else:
+                    print("⚠ Warning: Failed to read frame from camera")
+                    break
+                    
+        except Exception as e:
+            print(f"⚠ Camera error: {e}")
+        finally:
+            if self.camera is not None:
+                self.camera.release()
+                self.camera = None
+            self.camera_running = False
+            print("Camera capture stopped")
+    
+    def start_camera(self, camera_id=None):
+        """
+        Start camera capture in a separate thread.
+        
+        Args:
+            camera_id: Camera device ID (if None, uses self.camera_id)
+        """
+        if self.camera_running:
+            print("Camera is already running!")
+            return
+        
+        if camera_id is not None:
+            self.camera_id = camera_id
+        
+        self.camera_running = True
+        self.camera_thread = threading.Thread(
+            target=self._camera_capture_loop,
+            daemon=True
+        )
+        self.camera_thread.start()
+    
+    def stop_camera(self):
+        """Stop camera capture"""
+        if not self.camera_running:
+            print("Camera is not running!")
+            return
+        
+        self.camera_running = False
+        
+        # Wait for thread to finish
+        if self.camera_thread and self.camera_thread.is_alive():
+            self.camera_thread.join(timeout=2)
+        
+        print("Camera stopped")
     
     @staticmethod
     def normalize_angle(angle, prev_raw_angle, prev_norm_angle, boundary_count=0, min_val=-90, max_val=90):
@@ -643,14 +773,14 @@ class PhoneServer:
         return web.Response(text=self.HTML_PAGE, content_type='text/html')
     
     async def realsense_stream_handler(self, request):
-        """MJPEG stream handler for video frames"""
+        """MJPEG stream handler for video frames (VR mode - landscape orientation)"""
         response = web.StreamResponse()
         response.headers['Content-Type'] = 'multipart/x-mixed-replace; boundary=frame'
         await response.prepare(request)
         
         print(f"Video stream started for {request.remote}")
         
-        # Create placeholder for when no frame is available
+        # Create placeholder for when no frame is available (landscape orientation)
         placeholder = np.zeros((480, 640, 3), dtype=np.uint8)
         cv2.putText(placeholder, 'Waiting for frames...', (50, 240), 
                    cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
@@ -664,8 +794,21 @@ class PhoneServer:
                 if frame.dtype != np.uint8:
                     frame = frame.astype(np.uint8)
                 
-                # Encode frame as JPEG
-                _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                # Ensure landscape orientation for VR
+                # If frame is portrait (height > width), rotate it
+                h, w = frame.shape[:2]
+                if h > w:
+                    # Rotate 90 degrees clockwise to make it landscape
+                    frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
+                
+                # Resize to optimal VR resolution (16:9 aspect ratio, landscape)
+                # Target: 1280x720 or 1920x1080 for better quality
+                target_width = 1280
+                target_height = 720
+                frame = cv2.resize(frame, (target_width, target_height), interpolation=cv2.INTER_LINEAR)
+                
+                # Encode frame as JPEG with higher quality for VR
+                _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 90])
                 
                 await response.write(b'--frame\r\n')
                 await response.write(b'Content-Type: image/jpeg\r\n\r\n')
@@ -709,7 +852,10 @@ class PhoneServer:
             print(f"   • iOS: Use Safari")
             print(f"   • Android: Use Chrome or Firefox")
             print(f"\nFeatures available:")
-            print(f"  • Video Frame Streaming (external frames)")
+            if self.enable_camera and self.camera_running:
+                print(f"  • Video Frame Streaming (camera {self.camera_id})")
+            else:
+                print(f"  • Video Frame Streaming (external frames)")
             print(f"  • Mobile IMU/Orientation Data (iOS & Android)")
             print("=" * 70)
             print("Waiting for connection...\n")
@@ -754,6 +900,10 @@ class PhoneServer:
         
         self.server_running = True
         
+        # Start camera if enabled
+        if self.enable_camera:
+            self.start_camera()
+        
         if background:
             # Run in background thread
             self.server_thread = threading.Thread(
@@ -771,14 +921,20 @@ class PhoneServer:
                 print("\n\nServer stopped by user")
             finally:
                 self.server_running = False
+                if self.enable_camera:
+                    self.stop_camera()
     
     def stop(self):
-        """Stop the server"""
+        """Stop the server and camera"""
         if not self.server_running:
             print("Server is not running!")
             return
         
         self.server_running = False
+        
+        # Stop camera
+        if self.camera_running:
+            self.stop_camera()
         
         # Wait for thread to finish
         if self.server_thread and self.server_thread.is_alive():
@@ -789,8 +945,18 @@ class PhoneServer:
 
 def main():
     """Main function"""
-    server = PhoneServer()
-    server.run()
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='Phone Server for IMU and Camera Streaming')
+    parser.add_argument('--camera-id', type=int, default=0, help='Camera device ID (default: 0)')
+    parser.add_argument('--no-camera', action='store_true', help='Disable automatic camera capture')
+    parser.add_argument('--port', type=int, default=8443, help='Server port (default: 8443)')
+    parser.add_argument('--host', type=str, default='0.0.0.0', help='Server host (default: 0.0.0.0)')
+    
+    args = parser.parse_args()
+    
+    server = PhoneServer(camera_id=args.camera_id, enable_camera=not args.no_camera)
+    server.run(host=args.host, port=args.port, background=False)
 
 
 if __name__ == "__main__":

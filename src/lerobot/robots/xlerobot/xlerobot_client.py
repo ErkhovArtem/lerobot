@@ -253,6 +253,39 @@ class XLerobotClient(Robot):
 
         return new_frames, new_state
     
+    def _from_pedal_to_base_action(self, pressed_pedals: list[str]):
+
+        speed_setting = self.speed_levels[self.speed_index]
+        xy_speed = speed_setting["xy"]  # e.g. 0.1, 0.25, or 0.4
+        theta_speed = speed_setting["theta"]  # e.g. 30, 60, or 90
+
+        x_cmd = 0.0  # m/s forward/backward
+        y_cmd = 0.0  # m/s lateral
+        theta_cmd = 0.0  # deg/s rotation
+
+        if ["forward"] in pressed_pedals and ["left"] in pressed_pedals:
+            theta_cmd += theta_speed
+        elif ["forward"] in pressed_pedals and ["right"] in pressed_pedals:
+            theta_cmd -= theta_speed
+
+        elif ["forward"] in pressed_pedals:
+            x_cmd += xy_speed
+        elif ["backward"] in pressed_pedals:
+            x_cmd -= xy_speed
+        elif ["left"] in pressed_pedals:
+            y_cmd += xy_speed
+        elif ["right"] in pressed_pedals:
+            y_cmd -= xy_speed
+
+            
+        return {
+            # "head_motor_1.pos": 0.0,  # Head motors are not controlled by keyboard
+            # "head_motor_2.pos": 0.0,  # TODO: implement head control
+            "x.vel": x_cmd, 
+            "y.vel": y_cmd,
+            "theta.vel": theta_cmd,
+        }
+    
     def _from_keyboard_to_base_action(self, pressed_keys: np.ndarray):
         # Speed control
         if self.teleop_keys["speed_up"] in pressed_keys:

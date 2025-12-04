@@ -27,6 +27,7 @@ from lerobot.utils.robot_utils import busy_wait
 from lerobot.utils.visualization_utils import init_rerun, log_rerun_data
 from lerobot.cameras.configs import CameraConfig, Cv2Rotation, ColorMode
 from lerobot.cameras.realsense import RealSenseCamera, RealSenseCameraConfig
+from xlerobot_pedal_teleop import XlerobotPedalTeleop
 
 from phone_server import PhoneServer
 
@@ -78,6 +79,10 @@ keyboard_config = KeyboardTeleopConfig()
 keyboard = KeyboardTeleop(keyboard_config)
 keyboard.connect()
 
+# Init pedals
+pedals = XlerobotPedalTeleop()
+pedals.connect()
+
 # Connect to the robot and teleoperator
 follower.connect()
 leader.connect()
@@ -99,15 +104,14 @@ while True:
     head_action = headset_server.get_angles()
     action["head_motor_1.pos"] = head_action['yaw'] + follower.head_base_pose["head_motor_1.pos"]
     action["head_motor_2.pos"] = head_action['roll'] + follower.head_base_pose["head_motor_2.pos"]
-    # action["head_motor_1.pos"] = 0.
-    # action["head_motor_2.pos"] = 0.
-
+    pressed_pedals = pedals.get_action()
     pressed_keys = set(keyboard.get_action().keys())
     keyboard_keys = np.array(list(pressed_keys))
-    base_action = follower._from_keyboard_to_base_action(keyboard_keys) or {}
-    # base_action = {"x.vel": 0.,
-    #             "y.vel": 0.,
-    #             "theta.vel": 0.}
+    if len(keyboard_keys) > 0:
+        base_action = follower._from_keyboard_to_base_action(keyboard_keys)
+    else:
+        base_action = follower._from_pedal_to_base_action(pressed_pedals)
+
     action = {**action, **base_action}
     
     # Send processed action to robot (robot_action_processor.to_output should return dict[str, Any])
