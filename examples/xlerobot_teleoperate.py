@@ -65,7 +65,7 @@ def transform_arm_keys(original_dict: dict) -> dict:
     
     return transformed
 
-follower_config = XLerobotClientConfig(remote_ip = '10.16.116.39', cameras=camera_config)
+follower_config = XLerobotClientConfig(remote_ip = '10.16.116.5', cameras=camera_config)
 
 leader_config = BiSO100LeaderConfig(left_arm_port="/dev/ttyACM0", right_arm_port="/dev/ttyACM1", id="leader_arm")
 
@@ -102,11 +102,13 @@ while True:
     action = leader.get_action()
     action = transform_arm_keys(action)
     head_action = headset_server.get_angles()
-    action["head_motor_1.pos"] = head_action['yaw'] + follower.head_base_pose["head_motor_1.pos"]
-    action["head_motor_2.pos"] = head_action['roll'] + follower.head_base_pose["head_motor_2.pos"]
+    action["head_motor_1.pos"] = 1.1*head_action['yaw'] + follower.head_base_pose["head_motor_1.pos"]
+    action["head_motor_2.pos"] = 2*head_action['roll'] + follower.head_base_pose["head_motor_2.pos"]
     pressed_pedals = pedals.get_action()
     pressed_keys = set(keyboard.get_action().keys())
     keyboard_keys = np.array(list(pressed_keys))
+    if 'c' in pressed_keys:
+        headset_server.recalibrate()
     if len(keyboard_keys) > 0:
         base_action = follower._from_keyboard_to_base_action(keyboard_keys)
     else:

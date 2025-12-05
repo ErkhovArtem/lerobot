@@ -263,18 +263,18 @@ class XLerobotClient(Robot):
         y_cmd = 0.0  # m/s lateral
         theta_cmd = 0.0  # deg/s rotation
 
-        if ["forward"] in pressed_pedals and ["left"] in pressed_pedals:
+        if "forward" in pressed_pedals and "left" in pressed_pedals:
             theta_cmd += theta_speed
-        elif ["forward"] in pressed_pedals and ["right"] in pressed_pedals:
+        elif "forward" in pressed_pedals and "right" in pressed_pedals:
             theta_cmd -= theta_speed
 
-        elif ["forward"] in pressed_pedals:
+        elif "forward" in pressed_pedals:
             x_cmd += xy_speed
-        elif ["backward"] in pressed_pedals:
+        elif "backward" in pressed_pedals:
             x_cmd -= xy_speed
-        elif ["left"] in pressed_pedals:
+        elif "left" in pressed_pedals:
             y_cmd += xy_speed
-        elif ["right"] in pressed_pedals:
+        elif "right" in pressed_pedals:
             y_cmd -= xy_speed
 
             

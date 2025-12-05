@@ -19,6 +19,13 @@ class XlerobotPedalTeleop:
         self.port = self.__find_and_open_port()
 
     def get_action(self):
+        self.port.reset_input_buffer()
+
+        # try:
+        #     if self.port.in_waiting > 0:
+        #         data = self.port.read(self.port.in_waiting)
+        # except:
+        #     print("No data available!")
 
         data = self.port.read(1)
         if not data:

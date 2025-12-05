@@ -15,7 +15,7 @@ class PhoneServer:
 <html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="screen-orientation" content="landscape">
     <title>XLeRobotHead - VR Mode</title>
     <style>
@@ -29,6 +29,11 @@ class PhoneServer:
             height: 100%;
             overflow: hidden;
             background: #000;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -39,22 +44,26 @@ class PhoneServer:
         /* VR Display Container */
         .vr-container {
             display: flex;
-            width: 100%;
+            width: 100vw;
             height: 100vh;
-            position: relative;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
         }
         .eye-container {
             width: 50%;
-            height: 100%;
+            height: 100vh;
             overflow: hidden;
             background: #000;
             position: relative;
         }
         .eye-container.left {
-            border-right: 1px solid #333;
+            border-right: none;
         }
         .eye-container.right {
-            border-left: 1px solid #333;
+            border-left: none;
         }
         .eye-container img {
             width: 100%;
@@ -180,6 +189,7 @@ class PhoneServer:
             <div>Yaw: <span id="yaw">0.00°</span></div>
         </div>
         <button id="toggleBtn" class="btn-start" onclick="toggleStreaming()">Start Streaming</button>
+        <button class="btn-start" onclick="enterFullscreen()" style="margin-top: 5px;">⛶ Fullscreen</button>
         <div style="margin-top: 10px; font-size: 10px; color: #999;">
             <div id="platformInfo">Device sensor fusion</div>
             <div id="updateRate"></div>
@@ -194,6 +204,37 @@ class PhoneServer:
                 panel.classList.toggle('visible');
             }
         }
+        
+        // Enter fullscreen mode
+        function enterFullscreen() {
+            const elem = document.body;
+            if (elem.requestFullscreen) {
+                elem.requestFullscreen().catch(err => {
+                    console.log('Fullscreen request denied:', err);
+                });
+            } else if (elem.webkitRequestFullscreen) { // Safari
+                elem.webkitRequestFullscreen();
+            } else if (elem.mozRequestFullScreen) { // Firefox
+                elem.mozRequestFullScreen();
+            } else if (elem.msRequestFullscreen) { // IE/Edge
+                elem.msRequestFullscreen();
+            } else if (elem.webkitEnterFullscreen) { // iOS Safari
+                elem.webkitEnterFullscreen();
+            }
+        }
+        
+        // Auto-enter fullscreen on first user interaction
+        let fullscreenRequested = false;
+        function requestFullscreenOnInteraction() {
+            if (!fullscreenRequested) {
+                fullscreenRequested = true;
+                enterFullscreen();
+            }
+        }
+        
+        // Add event listeners for user interaction
+        document.addEventListener('click', requestFullscreenOnInteraction, { once: true });
+        document.addEventListener('touchstart', requestFullscreenOnInteraction, { once: true });
         
         // Lock screen orientation to landscape
         if (screen.orientation && screen.orientation.lock) {
@@ -397,7 +438,7 @@ class PhoneServer:
 </body>
 </html>"""
     
-    def __init__(self, camera_id=0, enable_camera=True):
+    def __init__(self, camera_id=0, enable_camera=False):
         """
         Initialize the server
         
@@ -701,6 +742,33 @@ class PhoneServer:
         self.offset_yaw = 0.0
         self.calibrated = False
     
+    def recalibrate(self):
+        """
+        Recalibrate using current position as new zero point.
+        Sets current angles as new offset values.
+        """
+        if not self.calibrated:
+            print("⚠ Cannot recalibrate: no calibration data available yet")
+            return
+        
+        # Set current angles as new offset (making current position the new zero)
+        self.offset_roll = self.roll
+        self.offset_pitch = self.pitch
+        self.offset_yaw = self.yaw
+        
+        # Reset previous angles tracking
+        self.prev_raw_roll = 0.0
+        self.prev_raw_pitch = 0.0
+        self.prev_raw_yaw = 0.0
+        self.prev_norm_roll = 0.0
+        self.prev_norm_pitch = 0.0
+        self.prev_norm_yaw = 0.0
+        self.boundary_count_roll = 0
+        self.boundary_count_pitch = 0
+        self.boundary_count_yaw = 0
+        
+        print(f"\n✓ Recalibrated: New zero point set at Roll={self.offset_roll:.2f}°, Pitch={self.offset_pitch:.2f}°, Yaw={self.offset_yaw:.2f}°")
+    
     async def websocket_handler(self, request):
         """Handle WebSocket connections for IMU data"""
         ws = web.WebSocketResponse()
@@ -800,12 +868,22 @@ class PhoneServer:
                 if h > w:
                     # Rotate 90 degrees clockwise to make it landscape
                     frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
+                    h, w = frame.shape[:2]  # Update dimensions after rotation
                 
-                # Resize to optimal VR resolution (16:9 aspect ratio, landscape)
-                # Target: 1280x720 or 1920x1080 for better quality
-                target_width = 1280
-                target_height = 720
-                frame = cv2.resize(frame, (target_width, target_height), interpolation=cv2.INTER_LINEAR)
+                # Resize maintaining aspect ratio (max dimension for quality)
+                # Target max width: 1920, max height: 1080 for better quality
+                max_width = 1920
+                max_height = 1080
+                
+                # Calculate scaling factor to fit within max dimensions while preserving aspect ratio
+                scale_w = max_width / w if w > max_width else 1.0
+                scale_h = max_height / h if h > max_height else 1.0
+                scale = min(scale_w, scale_h)  # Use smaller scale to fit both dimensions
+                
+                if scale < 1.0:
+                    new_width = int(w * scale)
+                    new_height = int(h * scale)
+                    frame = cv2.resize(frame, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
                 
                 # Encode frame as JPEG with higher quality for VR
                 _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 90])
