@@ -132,6 +132,6 @@ class XLerobotClientConfig(RobotConfig):
     head_base_pose: dict[str, float] = field(
         default_factory=lambda: {
             "head_motor_1.pos": 0,
-            "head_motor_2.pos": 0,
+            "head_motor_2.pos": -30,
         }
     )

@@ -70,6 +70,13 @@ class PhoneServer:
             height: 100%;
             object-fit: cover;
             display: block;
+            transition: transform 0.1s ease-out;
+        }
+        .eye-container.left img {
+            transform: translateX(var(--left-offset, 0px));
+        }
+        .eye-container.right img {
+            transform: translateX(var(--right-offset, 0px));
         }
         /* Control Panel (hidden by default, can be toggled) */
         .control-panel {
@@ -190,6 +197,15 @@ class PhoneServer:
         </div>
         <button id="toggleBtn" class="btn-start" onclick="toggleStreaming()">Start Streaming</button>
         <button class="btn-start" onclick="enterFullscreen()" style="margin-top: 5px;">⛶ Fullscreen</button>
+        <div style="margin-top: 15px; font-size: 11px;">
+            <label style="display: block; margin-bottom: 5px; color: white;">VR Convergence:</label>
+            <input type="range" id="convergenceSlider" min="-50" max="50" value="0" 
+                   style="width: 100%; height: 20px;" 
+                   oninput="updateConvergence(this.value)">
+            <div style="text-align: center; font-size: 10px; color: #999; margin-top: 3px;">
+                <span id="convergenceValue">0</span>px
+            </div>
+        </div>
         <div style="margin-top: 10px; font-size: 10px; color: #999;">
             <div id="platformInfo">Device sensor fusion</div>
             <div id="updateRate"></div>
@@ -197,6 +213,43 @@ class PhoneServer:
     </div>
 
     <script>
+        // Load saved convergence value from localStorage
+        let convergenceValue = 0;
+        const savedConvergence = localStorage.getItem('vrConvergence');
+        if (savedConvergence !== null) {
+            convergenceValue = parseFloat(savedConvergence);
+            const slider = document.getElementById('convergenceSlider');
+            if (slider) {
+                slider.value = convergenceValue;
+            }
+        }
+        
+        // Update convergence (image offset for each eye)
+        function updateConvergence(value) {
+            convergenceValue = parseFloat(value);
+            const root = document.documentElement;
+            // Left eye: shift right (positive offset)
+            // Right eye: shift left (negative offset)
+            root.style.setProperty('--left-offset', convergenceValue + 'px');
+            root.style.setProperty('--right-offset', (-convergenceValue) + 'px');
+            
+            // Update display
+            const valueDisplay = document.getElementById('convergenceValue');
+            if (valueDisplay) {
+                valueDisplay.textContent = convergenceValue;
+            }
+            
+            // Save to localStorage
+            localStorage.setItem('vrConvergence', convergenceValue);
+        }
+        
+        // Initialize convergence on page load
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => updateConvergence(convergenceValue));
+        } else {
+            updateConvergence(convergenceValue);
+        }
+        
         // Toggle control panel visibility
         function toggleControlPanel() {
             const panel = document.getElementById('controlPanel');
