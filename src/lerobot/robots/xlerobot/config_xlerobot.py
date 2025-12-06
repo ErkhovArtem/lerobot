@@ -126,6 +126,10 @@ class XLerobotClientConfig(RobotConfig):
             "speed_down": "m",
             # quit teleop
             "quit": "b",
+            'head_motor_1+': 'd',
+            'head_motor_1-': 'a',
+            'head_motor_2+': 'w',
+            'head_motor_2-': 's',
         }
     )
 

@@ -47,6 +47,7 @@ class XLerobotClient(Robot):
         ]
         self.speed_index = 0  # Start at slow
         self.head_base_pose = config.head_base_pose
+        self.target_head_pose = config.head_base_pose
 
         self.remote_ip = config.remote_ip
         self.port_zmq_cmd = config.port_zmq_cmd
@@ -253,8 +254,13 @@ class XLerobotClient(Robot):
 
         return new_frames, new_state
     
-    def _from_pedal_to_base_action(self, pressed_pedals: list[str]):
+    def _from_pedals_to_base_action(self, pressed_pedals: list[str], pressed_keys: np.ndarray):
 
+        # Speed control
+        if self.teleop_keys["speed_up"] in pressed_keys:
+            self.speed_index = min(self.speed_index + 1, 2)
+        if self.teleop_keys["speed_down"] in pressed_keys:
+            self.speed_index = max(self.speed_index - 1, 0)
         speed_setting = self.speed_levels[self.speed_index]
         xy_speed = speed_setting["xy"]  # e.g. 0.1, 0.25, or 0.4
         theta_speed = speed_setting["theta"]  # e.g. 30, 60, or 90
@@ -320,6 +326,17 @@ class XLerobotClient(Robot):
             "y.vel": y_cmd,
             "theta.vel": theta_cmd,
         }
+
+    def _from_keyboard_to_head_action(self, pressed_keys: np.ndarray):
+        if self.teleop_keys["head_motor_1+"] in pressed_keys:
+            self.target_head_pose["head_motor_1.pos"] += 1
+        if self.teleop_keys["head_motor_1-"] in pressed_keys:
+            self.target_head_pose["head_motor_1.pos"] -= 1
+        if self.teleop_keys["head_motor_2+"] in pressed_keys:
+            self.target_head_pose["head_motor_2.pos"] += 1
+        if self.teleop_keys["head_motor_2-"] in pressed_keys:
+            self.target_head_pose["head_motor_2.pos"] -= 1
+        return self.target_head_pose
 
     def get_observation(self) -> dict[str, Any]:
         """
