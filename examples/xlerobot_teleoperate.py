@@ -74,7 +74,7 @@ def main():
             )
     }
 
-    follower_config = XLerobotClientConfig(remote_ip = '10.16.116.9', cameras=camera_config)
+    follower_config = XLerobotClientConfig(remote_ip = '10.16.116.22', cameras=camera_config)
 
     leader_config = BiSO100LeaderConfig(left_arm_port="/dev/ttyACM0", right_arm_port="/dev/ttyACM1", id="leader_arm")
 

@@ -71,12 +71,13 @@ class PhoneServer:
             object-fit: cover;
             display: block;
             transition: transform 0.1s ease-out;
+            transform-origin: center center;
         }
         .eye-container.left img {
-            transform: translateX(var(--left-offset, 0px));
+            transform: translateX(var(--left-offset, 0px)) scale(var(--image-scale, 1.0));
         }
         .eye-container.right img {
-            transform: translateX(var(--right-offset, 0px));
+            transform: translateX(var(--right-offset, 0px)) scale(var(--image-scale, 1.0));
         }
         /* Control Panel (hidden by default, can be toggled) */
         .control-panel {
@@ -206,6 +207,15 @@ class PhoneServer:
                 <span id="convergenceValue">0</span>px
             </div>
         </div>
+        <div style="margin-top: 15px; font-size: 11px;">
+            <label style="display: block; margin-bottom: 5px; color: white;">Image Scale:</label>
+            <input type="range" id="scaleSlider" min="0.5" max="1.5" step="0.01" value="1.0" 
+                   style="width: 100%; height: 20px;" 
+                   oninput="updateImageScale(this.value)">
+            <div style="text-align: center; font-size: 10px; color: #999; margin-top: 3px;">
+                <span id="scaleValue">100</span>%
+            </div>
+        </div>
         <div style="margin-top: 10px; font-size: 10px; color: #999;">
             <div id="platformInfo">Device sensor fusion</div>
             <div id="updateRate"></div>
@@ -221,6 +231,17 @@ class PhoneServer:
             const slider = document.getElementById('convergenceSlider');
             if (slider) {
                 slider.value = convergenceValue;
+            }
+        }
+        
+        // Load saved image scale value from localStorage
+        let imageScaleValue = 1.0;
+        const savedScale = localStorage.getItem('vrImageScale');
+        if (savedScale !== null) {
+            imageScaleValue = parseFloat(savedScale);
+            const slider = document.getElementById('scaleSlider');
+            if (slider) {
+                slider.value = imageScaleValue;
             }
         }
         
@@ -243,11 +264,31 @@ class PhoneServer:
             localStorage.setItem('vrConvergence', convergenceValue);
         }
         
-        // Initialize convergence on page load
+        // Update image scale
+        function updateImageScale(value) {
+            imageScaleValue = parseFloat(value);
+            const root = document.documentElement;
+            root.style.setProperty('--image-scale', imageScaleValue);
+            
+            // Update display (show as percentage)
+            const valueDisplay = document.getElementById('scaleValue');
+            if (valueDisplay) {
+                valueDisplay.textContent = Math.round(imageScaleValue * 100);
+            }
+            
+            // Save to localStorage
+            localStorage.setItem('vrImageScale', imageScaleValue);
+        }
+        
+        // Initialize convergence and scale on page load
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => updateConvergence(convergenceValue));
+            document.addEventListener('DOMContentLoaded', () => {
+                updateConvergence(convergenceValue);
+                updateImageScale(imageScaleValue);
+            });
         } else {
             updateConvergence(convergenceValue);
+            updateImageScale(imageScaleValue);
         }
         
         // Toggle control panel visibility
